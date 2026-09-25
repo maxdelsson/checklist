@@ -1,68 +1,115 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-st.set_page_config(page_title="Lista de Chequeo - Multimedia San Felipe", layout="centered")
+# Configuración de la página
+st.set_page_config(
+    page_title="Lista de Chequeo en Vivo", page_icon="📋", layout="centered"
+)
 
-st.title("📋 Lista de Chequeo en Vivo")
-st.markdown("### **Área:** Multimedia San Felipe | **Coordinador:** Esposos Graterol")
-st.write("---")
+st.markdown(
+    """
+    <style>
+    .main-title { font-size: 28px; font-weight: bold; color: #2C3E50; margin-bottom: 0px; }
+    .sub-header { font-size: 16px; color: #7F8C8D; margin-bottom: 20px; }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
 
-# Inicializar los datos en la sesión para que persistan los cambios mientras está abierto
-if 'df' not in st.session_state:
-    st.session_state.df = pd.DataFrame({
-        "NRO": [1, 2, 3, 4],
-        "DETALLE DE LA ACTIVIDAD": [
-            "AYUNO SABADO",
-            "SERVIDORES SONIDO AYUNO",
-            "SERVIDORES STAFF AYUNO",
-            "SERVIDORES SEGURIDAD AYUNO"
-        ],
-        "STATUS": ["EN PROCESO", "LISTO", "NO SE EJECUTO", "EN PROCESO"],
-        "OBSERVACION": ["", "", "Faltó personal", ""]
-    })
+st.markdown(
+    '<p class="main-title">📋 Lista de Chequeo en Vivo</p>',
+    unsafe_allow_html=True,
+)
 
-# Formulario interactivo para cambiar estatus fácilmente
-st.subheader("⚙️ Actualizar Actividades")
+# Sección de configuración general configurable
+col_area, col_coord = st.columns(2)
+with col_area:
+    area_nombre = st.text_input("Área / Departamento", "Multimedia San Felipe")
+with col_coord:
+    coord_nombre = st.text_input("Coordinador(es)", "Esposos Graterol")
 
-for idx, row in st.session_state.df.iterrows():
-    col1, col2, col3 = st.columns([3, 2, 2])
-    
-    with col1:
-        st.markdown(f"**{row['NRO']}. {row['DETALLE DE LA ACTIVIDAD']}**")
-    
-    with col2:
+st.markdown(
+    f'<p class="sub-header">Área: {area_nombre} | Coordinador: {coord_nombre}</p>',
+    unsafe_allow_html=True,
+)
+st.markdown("---")
+
+# Inicializar las actividades en la sesión para poder agregarlas/editarlas dinámicamente
+if "df_actividades" not in st.session_state:
+    st.session_state.df_actividades = pd.DataFrame(
+        {
+            "NRO": [1, 2],
+            "DETALLE DE LA ACTIVIDAD": [
+                "Revisión de equipos de sonido",
+                "Prueba de cámaras y transmisión",
+            ],
+            "STATUS": ["EN PROCESO", "LISTO"],
+            "OBSERVACION": ["", "Todo en orden"],
+        }
+    )
+
+st.markdown("### ⚙️ Administrar y Actualizar Actividades")
+
+# Formulario para agregar una nueva actividad
+with st.expander("➕ Agregar nueva actividad a la lista"):
+    with st.form("nueva_actividad_form"):
+        nuevo_detalle = st.text_input("Detalle de la Actividad")
         nuevo_status = st.selectbox(
-            f"Status {idx}", 
-            ["LISTO", "EN PROCESO", "NO SE EJECUTO"], 
-            index=["LISTO", "EN PROCESO", "NO SE EJECUTO"].index(row['STATUS']),
-            key=f"status_{idx}",
-            label_visibility="collapsed"
+            "Status Inicial", ["EN PROCESO", "LISTO", "NO SE EJECUTO"]
         )
-        st.session_state.df.at[idx, 'STATUS'] = nuevo_status
-        
-    with col3:
-        nueva_obs = st.text_input(
-            f"Obs {idx}", 
-            value=row['OBSERVACION'], 
-            key=f"obs_{idx}",
-            placeholder="Observación...",
-            label_visibility="collapsed"
-        )
-        st.session_state.df.at[idx, 'OBSERVACION'] = nueva_obs
+         nueva_obs = st.text_input("Observación (Opcional)")
+        submit_agregar = st.form_submit_button("Agregar Actividad")
 
-st.write("---")
-st.subheader("👁️ Vista General (Lo que ve la Pastora)")
+        if submit_agregar and nuevo_detalle:
+            nuevo_nro = (
+                len(st.session_state.df_actividades) + 1
+            )
+            nueva_fila = pd.DataFrame(
+                {
+                    "NRO": [nuevo_nro],
+                    "DETALLE DE LA ACTIVIDAD": [nuevo_detalle],
+                    "STATUS": [nuevo_status],
+                    "OBSERVACION": [nueva_obs],
+                }
+            )
+            st.session_state.df_actividades = pd.concat(
+                [st.session_state.df_actividades, nueva_fila], ignore_index=True
+            )
+            st.success("¡Actividad agregada con éxito!")
+            st.rerun()
 
-# Función de diseño para pintar filas enteras según el estatus
-def resaltar_fila(row):
-    if row['STATUS'] == 'LISTO':
-        return ['color: green; text-decoration: line-through; font-weight: bold;'] * len(row)
-    elif row['STATUS'] == 'EN PROCESO':
-        return ['color: #d4ac0d; font-weight: bold;'] * len(row)
-    elif row['STATUS'] == 'NO SE EJECUTO':
-        return ['color: red; font-weight: bold;'] * len(row)
-    return [''] * len(row)
+st.markdown("#### Edición rápida de registros actuales:")
 
-# Mostrar la tabla estilizada
-tabla_estilizada = st.session_state.df.style.apply(resaltar_fila, axis=1)
-st.dataframe(tabla_estilizada, use_container_width=True)
+# Editor de datos interactivo para modificar status, observaciones o textos sobre la marcha
+edited_df = st.data_editor(
+    st.session_state.df_actividades,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="editor_actividades",
+)
+
+# Actualizar el estado de la sesión con lo editado
+st.session_state.df_actividades = edited_df
+
+st.markdown("---")
+st.markdown("### 👁️ Vista General de Control")
+
+
+# Función para colorear las celdas según el status
+def color_status(val):
+    if val == "LISTO":
+        return "color: #27AE60; font-weight: bold;"
+    elif val == "EN PROCESO":
+        return "color: #D4AC0D; font-weight: bold;"
+    elif val == "NO SE EJECUTO":
+        return "color: #C0392B; font-weight: bold;"
+    return ""
+
+
+# Mostrar la tabla limpia y presentable
+st.dataframe(
+    st.session_state.df_actividades.style.applymap(
+        color_status, subset=["STATUS"]
+    ),
+    use_container_width=True,
+)
