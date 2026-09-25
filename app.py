@@ -57,13 +57,11 @@ with st.expander("➕ Agregar nueva actividad a la lista"):
         nuevo_status = st.selectbox(
             "Status Inicial", ["EN PROCESO", "LISTO", "NO SE EJECUTO"]
         )
-         nueva_obs = st.text_input("Observación (Opcional)")
+        nueva_obs = st.text_input("Observación (Opcional)")
         submit_agregar = st.form_submit_button("Agregar Actividad")
 
         if submit_agregar and nuevo_detalle:
-            nuevo_nro = (
-                len(st.session_state.df_actividades) + 1
-            )
+            nuevo_nro = len(st.session_state.df_actividades) + 1
             nueva_fila = pd.DataFrame(
                 {
                     "NRO": [nuevo_nro],
